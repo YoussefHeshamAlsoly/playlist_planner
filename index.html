@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>playlist-planner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #12151A;
+    --surface: #1B1F26;
+    --surface-2: #20252D;
+    --border: #2A3038;
+    --text: #E7EAEE;
+    --text-muted: #8A93A3;
+    --teal: #5EEAD4;
+    --teal-dim: rgba(94, 234, 212, 0.14);
+    --amber: #F0A868;
+    --amber-dim: rgba(240, 168, 104, 0.14);
+    --danger: #F0716B;
+    --mono: 'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace;
+    --sans: 'Inter', -apple-system, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 48px 20px 96px;
+  }
+
+  header h1 {
+    font-family: var(--mono);
+    font-size: 26px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    margin: 0 0 6px;
+  }
+  header h1 .dim { color: var(--text-muted); font-weight: 400; }
+  header p {
+    color: var(--text-muted);
+    margin: 0 0 32px;
+    font-size: 15px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+
+  label {
+    display: block;
+    font-size: 12.5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+  }
+
+  input[type="text"], input[type="password"] {
+    width: 100%;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 14px;
+    padding: 11px 12px;
+    border-radius: 6px;
+    outline: none;
+    transition: border-color .15s ease;
+  }
+  input[type="text"]:focus, input[type="password"]:focus {
+    border-color: var(--teal);
+  }
+
+  .field { margin-bottom: 18px; }
+  .field:last-child { margin-bottom: 0; }
+  .field-help { font-size: 12.5px; color: var(--text-muted); margin-top: 6px; }
+  .field-help a { color: var(--teal); }
+
+  .row { display: flex; gap: 16px; flex-wrap: wrap; }
+  .row > .field { flex: 1; min-width: 180px; }
+
+  .speed-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  input[type="range"] {
+    flex: 1;
+    accent-color: var(--teal);
+    height: 4px;
+  }
+  .speed-value {
+    font-family: var(--mono);
+    font-weight: 600;
+    color: var(--teal);
+    min-width: 52px;
+    text-align: right;
+    font-size: 14px;
+  }
+
+  .checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .checkbox-row input { accent-color: var(--teal); width: 16px; height: 16px; }
+  .checkbox-row span { font-size: 14px; color: var(--text); }
+
+  /* Signature element: live command preview */
+  .cmd-preview {
+    font-family: var(--mono);
+    font-size: 13px;
+    background: #0D0F13;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 13px 14px;
+    color: var(--teal);
+    overflow-x: auto;
+    white-space: nowrap;
+    margin-top: 20px;
+  }
+  .cmd-preview .prompt { color: var(--text-muted); }
+  .cmd-preview .flag { color: var(--amber); }
+  .cmd-preview .cursor {
+    display: inline-block;
+    width: 7px; height: 14px;
+    background: var(--teal);
+    margin-left: 2px;
+    vertical-align: -2px;
+    animation: blink 1s step-end infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  button.primary {
+    width: 100%;
+    background: var(--teal);
+    color: #0B1512;
+    border: none;
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: 14.5px;
+    padding: 13px;
+    border-radius: 7px;
+    cursor: pointer;
+    margin-top: 20px;
+    transition: opacity .15s ease;
+  }
+  button.primary:hover { opacity: 0.88; }
+  button.primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  details.setup {
+    font-size: 13.5px;
+    color: var(--text-muted);
+    margin-top: 6px;
+  }
+  details.setup summary {
+    cursor: pointer;
+    color: var(--teal);
+    font-size: 12.5px;
+    font-weight: 600;
+  }
+  details.setup ol { padding-left: 18px; margin: 10px 0 0; }
+  details.setup li { margin-bottom: 6px; }
+  details.setup a { color: var(--teal); }
+
+  .status {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-top: 14px;
+    min-height: 18px;
+  }
+  .status.error { color: var(--danger); }
+
+  /* Results */
+  #results { margin-top: 32px; }
+
+  .summary-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--text-muted);
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .summary-bar strong { color: var(--text); font-weight: 600; }
+
+  .verbose-table { width: 100%; border-collapse: collapse; font-size: 13.5px; margin-bottom: 32px; }
+  .verbose-table th {
+    text-align: left;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .verbose-table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+    font-family: var(--mono);
+    color: var(--text);
+  }
+  .verbose-table td.title-cell { font-family: var(--sans); }
+  .verbose-table tr:last-child td { border-bottom: none; }
+
+  .day {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 8px;
+  }
+  .day-marker {
+    flex-shrink: 0;
+    width: 34px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .day-dot {
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--teal);
+    flex-shrink: 0;
+  }
+  .day-line {
+    width: 1px;
+    flex: 1;
+    background: var(--border);
+    margin-top: 4px;
+  }
+  .day-body { flex: 1; padding-bottom: 28px; }
+  .day-title {
+    font-family: var(--mono);
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .day-time { color: var(--text-muted); font-weight: 400; }
+
+  .segment {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-top: 10px;
+  }
+  .segment-title {
+    font-size: 14.5px;
+    font-weight: 600;
+    margin-bottom: 3px;
+  }
+  .segment-tag {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 500;
+  }
+  .segment-tag.full { color: var(--teal); }
+  .segment-tag.partial { color: var(--amber); }
+  .segment-tag.resume { color: var(--amber); }
+
+  .segment-bar {
+    height: 5px;
+    background: var(--surface-2);
+    border-radius: 3px;
+    margin: 10px 0;
+    overflow: hidden;
+    position: relative;
+  }
+  .segment-bar-fill {
+    position: absolute;
+    top: 0; bottom: 0;
+    background: var(--teal);
+    border-radius: 3px;
+  }
+  .segment-bar-fill.resume { background: var(--amber); }
+
+  .segment a {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    color: var(--teal);
+    text-decoration: none;
+    word-break: break-all;
+  }
+  .segment a:hover { text-decoration: underline; }
+
+  footer {
+    margin-top: 48px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 12.5px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>playlist<span class="dim">-</span>planner</h1>
+    <p>Turn any YouTube course playlist into consistent daily watch sessions. Runs entirely in your browser — nothing is uploaded anywhere.</p>
+  </header>
+
+  <div class="card">
+    <div class="field">
+      <label for="playlistUrl">Playlist link</label>
+      <input type="text" id="playlistUrl" placeholder="https://www.youtube.com/playlist?list=...">
+    </div>
+
+    <div class="row">
+      <div class="field">
+        <label for="timeInput">Session time</label>
+        <input type="text" id="timeInput" placeholder="45:00" value="45:00">
+      </div>
+      <div class="field">
+        <label for="speedInput">Playback speed</label>
+        <div class="speed-row">
+          <input type="range" id="speedInput" min="0.25" max="2.0" step="0.05" value="1.00">
+          <span class="speed-value" id="speedValue">1.00x</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="checkbox-row" for="verboseInput" style="text-transform:none; letter-spacing:0; font-weight:400;">
+        <input type="checkbox" id="verboseInput">
+        <span>Show full per-video listing</span>
+      </label>
+    </div>
+
+    <div class="cmd-preview" id="cmdPreview"></div>
+
+    <button class="primary" id="runBtn">Plan my sessions</button>
+    <div class="status" id="status"></div>
+  </div>
+
+  <div id="results"></div>
+
+  <footer>Uses the official YouTube Data API v3 via a small proxy. No tracking, no accounts.</footer>
+</div>
+
+<script>
+// Paste your deployed Cloudflare Worker URL here (see worker.js for setup steps).
+// Example: "https://playlist-planner-api.yoursubdomain.workers.dev"
+const WORKER_URL = "https://playlist-planner-api.YOUR-SUBDOMAIN.workers.dev";
+
+const $ = (id) => document.getElementById(id);
+
+// ---------------------------------------------------------------------
+// Formatting helpers (mirrors the Python script)
+// ---------------------------------------------------------------------
+function formatTimedelta(seconds) {
+  if (seconds == null) return 'N/A';
+  const total = Math.round(seconds);
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  if (h) return `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  return `${m}:${String(s).padStart(2,'0')}`;
+}
+
+function formatMinutesLabel(seconds) {
+  seconds = Math.round(seconds);
+  let m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  const h = Math.floor(m / 60);
+  m = m % 60;
+  const parts = [];
+  if (h) parts.push(`${h}h`);
+  if (m) parts.push(`${m} min${m !== 1 ? 's' : ''}`);
+  if (s && !h) parts.push(`${s} sec${s !== 1 ? 's' : ''}`);
+  if (!parts.length) parts.push('0 secs');
+  return parts.join(' ');
+}
+
+function parseTimeArg(str) {
+  const parts = str.trim().split(':').map(p => parseInt(p, 10));
+  if (parts.some(isNaN)) throw new Error(`Invalid time format: "${str}". Use H:MM:SS, M:SS, or SS.`);
+  let h = 0, m = 0, s = 0;
+  if (parts.length === 3) [h, m, s] = parts;
+  else if (parts.length === 2) [m, s] = parts;
+  else if (parts.length === 1) [s] = parts;
+  else throw new Error(`Invalid time format: "${str}".`);
+  const total = h * 3600 + m * 60 + s;
+  if (total <= 0) throw new Error('Time must be greater than 0.');
+  return total;
+}
+
+function extractPlaylistId(input) {
+  const match = input.match(/[?&]list=([a-zA-Z0-9_-]+)/);
+  return match ? match[1] : input.trim();
+}
+
+function parseISO8601Duration(iso) {
+  const match = /^P(?:(\d+)D)?T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/.exec(iso || '');
+  if (!match) return 0;
+  const [, d, h, m, s] = match.map(v => v ? parseInt(v, 10) : 0);
+  return (d || 0) * 86400 + (h || 0) * 3600 + (m || 0) * 60 + (s || 0);
+}
+
+// ---------------------------------------------------------------------
+// YouTube API
+// ---------------------------------------------------------------------
+async function fetchAllPlaylistItems(playlistId, onProgress) {
+  const items = [];
+  let pageToken = '';
+  while (true) {
+    const url = new URL(`${WORKER_URL}/playlistItems`);
+    url.searchParams.set('playlistId', playlistId);
+    if (pageToken) url.searchParams.set('pageToken', pageToken);
+
+    const res = await fetch(url);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error?.message || `API error (${res.status})`);
+
+    for (const item of (data.items || [])) {
+      const videoId = item.contentDetails?.videoId;
+      const title = item.snippet?.title;
+      if (videoId) items.push({ videoId, title });
+    }
+    onProgress?.(items.length);
+
+    pageToken = data.nextPageToken;
+    if (!pageToken) break;
+  }
+  return items;
+}
+
+async function fetchDurations(videoIds) {
+  const durations = {};
+  for (let i = 0; i < videoIds.length; i += 50) {
+    const batch = videoIds.slice(i, i + 50);
+    const url = new URL(`${WORKER_URL}/videos`);
+    url.searchParams.set('ids', batch.join(','));
+
+    const res = await fetch(url);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error?.message || `API error (${res.status})`);
+
+    for (const item of (data.items || [])) {
+      durations[item.id] = parseISO8601Duration(item.contentDetails.duration);
+    }
+  }
+  return durations;
+}
+
+// ---------------------------------------------------------------------
+// Splitting logic (mirrors Python build_splits)
+// ---------------------------------------------------------------------
+function buildSplits(entries, targetContentSeconds) {
+  const splits = [];
+  let current = [];
+  let currentTime = 0;
+
+  for (const entry of entries) {
+    const duration = entry.duration || 0;
+    if (duration === 0) {
+      current.push({ title: entry.title, videoId: entry.videoId, start: 0, end: 0, full: true });
+      continue;
+    }
+    let offset = 0;
+    while (offset < duration) {
+      const remainingInSplit = targetContentSeconds - currentTime;
+      const remainingInVideo = duration - offset;
+      const take = Math.min(remainingInSplit, remainingInVideo);
+      const end = offset + take;
+
+      current.push({
+        title: entry.title,
+        videoId: entry.videoId,
+        start: offset,
+        end: end,
+        full: (offset === 0 && end === duration),
+      });
+      currentTime += take;
+      offset = end;
+
+      if (currentTime >= targetContentSeconds) {
+        splits.push(current);
+        current = [];
+        currentTime = 0;
+      }
+    }
+  }
+  if (current.length) splits.push(current);
+  return splits;
+}
+
+// ---------------------------------------------------------------------
+// Rendering
+// ---------------------------------------------------------------------
+function renderVerboseTable(entries, speed) {
+  const showSpeed = speed !== 1.0;
+  const totalSeconds = entries.reduce((sum, e) => sum + (e.duration || 0), 0);
+
+  let html = `<table class="verbose-table"><thead><tr>
+    <th>#</th><th>Duration</th>${showSpeed ? `<th>@${speed.toFixed(2)}x</th>` : ''}<th>Title</th>
+  </tr></thead><tbody>`;
+
+  entries.forEach((e, i) => {
+    const dur = e.duration || 0;
+    html += `<tr><td>${i + 1}</td><td>${formatTimedelta(dur)}</td>`;
+    if (showSpeed) html += `<td>${formatTimedelta(dur / speed)}</td>`;
+    html += `<td class="title-cell">${escapeHtml(e.title)}</td></tr>`;
+  });
+  html += `</tbody></table>`;
+
+  html += `<div class="summary-bar">
+    <span>${entries.length} videos &middot; total ${formatTimedelta(totalSeconds)}</span>
+    ${showSpeed ? `<span>watch time @ ${speed.toFixed(2)}x: <strong>${formatTimedelta(totalSeconds / speed)}</strong></span>` : ''}
+  </div>`;
+  return html;
+}
+
+function renderSplits(splits, targetSeconds, speed) {
+  const showSpeed = speed !== 1.0;
+  const baseUrl = 'https://www.youtube.com/watch?v=';
+
+  let html = `<div class="summary-bar">
+    <span>Split into <strong>${splits.length}</strong> session${splits.length !== 1 ? 's' : ''}</span>
+    <span>~${formatTimedelta(targetSeconds)} each${showSpeed ? ` @ ${speed.toFixed(2)}x` : ''}</span>
+  </div>`;
+
+  splits.forEach((split, dayIdx) => {
+    const dayContent = split.reduce((sum, seg) => sum + (seg.end - seg.start), 0);
+    const dayActual = showSpeed ? dayContent / speed : dayContent;
+    const isLast = dayIdx === splits.length - 1;
+
+    html += `<div class="day">
+      <div class="day-marker">
+        <div class="day-dot">${dayIdx + 1}</div>
+        ${!isLast ? '<div class="day-line"></div>' : ''}
+      </div>
+      <div class="day-body">
+        <div class="day-title">Day ${dayIdx + 1} <span class="day-time">
+          (${formatTimedelta(dayActual)}${showSpeed ? ` actual, ${formatTimedelta(dayContent)} content` : ''})
+        </span></div>`;
+
+    split.forEach(seg => {
+      const link = `${baseUrl}${seg.videoId}`;
+      const segLen = seg.end - seg.start;
+      // duration unknown here per-segment (we don't carry full video length),
+      // so bar fill is relative to the segment's own consumed span vs its "full" flag
+      let tag, sub, href, fillPct, fillClass;
+
+      if (seg.full) {
+        tag = 'full';
+        sub = 'Full video';
+        href = link;
+        fillPct = 100;
+        fillClass = '';
+      } else if (seg.start === 0) {
+        tag = 'partial';
+        sub = formatMinutesLabel(segLen);
+        href = `${link}&t=${Math.floor(seg.end)}s`;
+        fillPct = null; // unknown total length on client without extra data; show as partial marker
+        fillClass = '';
+      } else {
+        tag = 'resume';
+        sub = `Resume at ${formatTimedelta(seg.start)}, watch ${formatMinutesLabel(segLen)}`;
+        href = `${link}&t=${Math.floor(seg.start)}s`;
+        fillPct = null;
+        fillClass = 'resume';
+      }
+
+      html += `<div class="segment">
+        <div class="segment-title">${escapeHtml(seg.title)}</div>
+        <div class="segment-tag ${tag}">${tag === 'full' ? '(full)' : `(${sub})`}</div>
+        <a href="${href}" target="_blank" rel="noopener">${href}</a>
+      </div>`;
+    });
+
+    html += `</div></div>`;
+  });
+
+  return html;
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str ?? '';
+  return div.innerHTML;
+}
+
+// ---------------------------------------------------------------------
+// Command preview (signature element)
+// ---------------------------------------------------------------------
+function updateCmdPreview() {
+  const time = $('timeInput').value.trim() || '45:00';
+  const speed = parseFloat($('speedInput').value).toFixed(2);
+  const verbose = $('verboseInput').checked;
+
+  let cmd = `<span class="prompt">$</span> playlist-planner <span class="flag">--time</span> ${time}`;
+  cmd += ` <span class="flag">--speed</span> ${speed}`;
+  if (verbose) cmd += ` <span class="flag">--verbose</span>`;
+  cmd += `<span class="cursor"></span>`;
+  $('cmdPreview').innerHTML = cmd;
+}
+
+// ---------------------------------------------------------------------
+// Wiring
+// ---------------------------------------------------------------------
+$('speedInput').addEventListener('input', () => {
+  $('speedValue').textContent = parseFloat($('speedInput').value).toFixed(2) + 'x';
+  updateCmdPreview();
+});
+$('timeInput').addEventListener('input', updateCmdPreview);
+$('verboseInput').addEventListener('change', updateCmdPreview);
+
+updateCmdPreview();
+
+$('runBtn').addEventListener('click', async () => {
+  const statusEl = $('status');
+  const resultsEl = $('results');
+  const runBtn = $('runBtn');
+  statusEl.className = 'status';
+  statusEl.textContent = '';
+  resultsEl.innerHTML = '';
+
+  const playlistInput = $('playlistUrl').value.trim();
+  const speed = parseFloat($('speedInput').value);
+  const verbose = $('verboseInput').checked;
+
+  if (!playlistInput) { statusEl.className = 'status error'; statusEl.textContent = 'Enter a playlist link.'; return; }
+
+  let targetSeconds;
+  try {
+    targetSeconds = parseTimeArg($('timeInput').value.trim() || '45:00');
+  } catch (e) {
+    statusEl.className = 'status error'; statusEl.textContent = e.message; return;
+  }
+
+  const playlistId = extractPlaylistId(playlistInput);
+
+  runBtn.disabled = true;
+  try {
+    statusEl.textContent = 'Fetching playlist items...';
+    const items = await fetchAllPlaylistItems(playlistId, (n) => {
+      statusEl.textContent = `Fetching playlist items... (${n} so far)`;
+    });
+
+    if (!items.length) {
+      statusEl.className = 'status error';
+      statusEl.textContent = 'No items found. Check the playlist link and that it\'s public/unlisted.';
+      return;
+    }
+
+    statusEl.textContent = `Fetching durations for ${items.length} videos...`;
+    const durations = await fetchDurations(items.map(i => i.videoId));
+    const entries = items.map(i => ({ ...i, duration: durations[i.videoId] || 0 }));
+
+    statusEl.textContent = '';
+
+    let html = '';
+    if (verbose) html += renderVerboseTable(entries, speed);
+
+    const targetContentSeconds = targetSeconds * speed;
+    const splits = buildSplits(entries, targetContentSeconds);
+    html += renderSplits(splits, targetSeconds, speed);
+
+    resultsEl.innerHTML = html;
+  } catch (e) {
+    statusEl.className = 'status error';
+    statusEl.textContent = e.message || 'Something went wrong.';
+  } finally {
+    runBtn.disabled = false;
+  }
+});
+</script>
+</body>
+</html>
