@@ -18,6 +18,8 @@
     --teal-dim: rgba(94, 234, 212, 0.14);
     --amber: #F0A868;
     --amber-dim: rgba(240, 168, 104, 0.14);
+    --success: #4ADE80;
+    --success-dim: rgba(74, 222, 128, 0.12);
     --danger: #F0716B;
     --mono: 'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace;
     --sans: 'Inter', -apple-system, sans-serif;
@@ -53,6 +55,28 @@
     margin: 0 0 32px;
     font-size: 15px;
   }
+
+  .header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .whoami-btn {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--teal);
+    border: 1px solid var(--border);
+    background: var(--surface);
+    padding: 8px 14px;
+    border-radius: 6px;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: border-color .15s ease;
+  }
+  .whoami-btn:hover { border-color: var(--teal); }
 
   .card {
     background: var(--surface);
@@ -197,7 +221,7 @@
   .summary-bar {
     display: flex;
     justify-content: space-between;
-    align-items: baseline;
+    align-items: center;
     font-family: var(--mono);
     font-size: 13px;
     color: var(--text-muted);
@@ -205,9 +229,41 @@
     border-bottom: 1px solid var(--border);
     margin-bottom: 24px;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 12px;
   }
   .summary-bar strong { color: var(--text); font-weight: 600; }
+  .summary-left { display: flex; gap: 16px; flex-wrap: wrap; }
+  .summary-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+  button.save-btn {
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    padding: 8px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: border-color .15s ease;
+  }
+  button.save-btn:hover { border-color: var(--teal); }
+
+  button.reset-btn {
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    padding: 8px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: border-color .15s ease, color .15s ease;
+  }
+  button.reset-btn:hover { border-color: var(--danger); color: var(--danger); }
 
   .verbose-table { width: 100%; border-collapse: collapse; font-size: 13.5px; margin-bottom: 32px; }
   .verbose-table th {
@@ -264,8 +320,20 @@
     font-size: 14px;
     font-weight: 600;
     margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
   }
   .day-time { color: var(--text-muted); font-weight: 400; }
+
+  .complete-checkbox {
+    accent-color: var(--success);
+    width: 17px;
+    height: 17px;
+    flex-shrink: 0;
+    cursor: pointer;
+    margin-top: 1px;
+  }
 
   .segment {
     background: var(--surface);
@@ -273,11 +341,24 @@
     border-radius: 8px;
     padding: 14px 16px;
     margin-top: 10px;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    transition: background .15s ease, border-color .15s ease;
   }
+  .segment.completed {
+    border-color: var(--success);
+    background: var(--success-dim);
+  }
+  .segment-content { flex: 1; min-width: 0; }
   .segment-title {
     font-size: 14.5px;
     font-weight: 600;
     margin-bottom: 3px;
+  }
+  .segment.completed .segment-title {
+    text-decoration: line-through;
+    color: var(--text-muted);
   }
   .segment-tag {
     font-family: var(--mono);
@@ -324,10 +405,13 @@
 <body>
 <div class="wrap">
 
-  <header>
-    <h1>playlist<span class="dim">-</span>planner</h1>
-    <p>Turn any YouTube course playlist into consistent daily watch sessions. Runs entirely in your browser — nothing is uploaded anywhere.</p>
-  </header>
+  <div class="header-row">
+    <header>
+      <h1>playlist<span class="dim">-</span>planner</h1>
+      <p>Turn any YouTube course playlist into consistent daily watch sessions. Runs entirely in your browser — nothing is uploaded anywhere.</p>
+    </header>
+    <a href="https://resume.yousefalsoly.workers.dev/" target="_blank" rel="noopener" class="whoami-btn">WhoAmI</a>
+  </div>
 
   <div class="card">
     <div class="field">
@@ -364,7 +448,7 @@
 
   <div id="results"></div>
 
-  <footer>Uses the official YouTube Data API v3 via a small proxy. No tracking, no accounts.</footer>
+  <footer>Uses the official YouTube Data API v3. No tracking, no accounts, no ads.</footer>
 </div>
 
 <script>
@@ -416,6 +500,29 @@ function extractPlaylistId(input) {
   const match = input.match(/[?&]list=([a-zA-Z0-9_-]+)/);
   return match ? match[1] : input.trim();
 }
+
+// ---------------------------------------------------------------------
+// Progress persistence (per playlist, saved in this browser)
+// ---------------------------------------------------------------------
+function segmentKey(seg) {
+  return `${seg.videoId}:${Math.floor(seg.start)}:${Math.floor(seg.end)}`;
+}
+
+function loadProgress(playlistId) {
+  try {
+    return JSON.parse(localStorage.getItem(`plp_progress:${playlistId}`)) || {};
+  } catch {
+    return {};
+  }
+}
+
+function saveProgress(playlistId, progress) {
+  localStorage.setItem(`plp_progress:${playlistId}`, JSON.stringify(progress));
+}
+
+// Current plan state, kept up to date after each successful run so the
+// Save button and checkbox handlers can reference it without re-parsing the DOM.
+let currentState = { playlistId: null, splits: [], targetSeconds: 0, speed: 1.0, progress: {} };
 
 function parseISO8601Duration(iso) {
   const match = /^P(?:(\d+)D)?T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/.exec(iso || '');
@@ -538,61 +645,67 @@ function renderVerboseTable(entries, speed) {
   return html;
 }
 
-function renderSplits(splits, targetSeconds, speed) {
+function renderSplits(splits, targetSeconds, speed, progress) {
   const showSpeed = speed !== 1.0;
   const baseUrl = 'https://www.youtube.com/watch?v=';
 
   let html = `<div class="summary-bar">
-    <span>Split into <strong>${splits.length}</strong> session${splits.length !== 1 ? 's' : ''}</span>
-    <span>~${formatTimedelta(targetSeconds)} each${showSpeed ? ` @ ${speed.toFixed(2)}x` : ''}</span>
+    <div class="summary-left">
+      <span>Split into <strong>${splits.length}</strong> session${splits.length !== 1 ? 's' : ''}</span>
+      <span>~${formatTimedelta(targetSeconds)} each${showSpeed ? ` @ ${speed.toFixed(2)}x` : ''}</span>
+    </div>
+    <div class="summary-actions">
+      <button class="save-btn" id="saveBtn" type="button">Save as HTML</button>
+      <button class="reset-btn" id="resetBtn" type="button">Reset progress</button>
+    </div>
   </div>`;
 
   splits.forEach((split, dayIdx) => {
     const dayContent = split.reduce((sum, seg) => sum + (seg.end - seg.start), 0);
     const dayActual = showSpeed ? dayContent / speed : dayContent;
     const isLast = dayIdx === splits.length - 1;
+    const dayAllChecked = split.every(seg => progress[segmentKey(seg)]);
 
-    html += `<div class="day">
+    html += `<div class="day" data-day-idx="${dayIdx}">
       <div class="day-marker">
         <div class="day-dot">${dayIdx + 1}</div>
         ${!isLast ? '<div class="day-line"></div>' : ''}
       </div>
       <div class="day-body">
-        <div class="day-title">Day ${dayIdx + 1} <span class="day-time">
+        <div class="day-title">
+          <input type="checkbox" class="complete-checkbox day-checkbox" data-day-idx="${dayIdx}" ${dayAllChecked ? 'checked' : ''}>
+          Day ${dayIdx + 1} <span class="day-time">
           (${formatTimedelta(dayActual)}${showSpeed ? ` actual, ${formatTimedelta(dayContent)} content` : ''})
         </span></div>`;
 
     split.forEach(seg => {
       const link = `${baseUrl}${seg.videoId}`;
       const segLen = seg.end - seg.start;
-      // duration unknown here per-segment (we don't carry full video length),
-      // so bar fill is relative to the segment's own consumed span vs its "full" flag
-      let tag, sub, href, fillPct, fillClass;
+      const key = segmentKey(seg);
+      const isChecked = !!progress[key];
+      let tag, sub, href;
 
       if (seg.full) {
         tag = 'full';
         sub = 'Full video';
         href = link;
-        fillPct = 100;
-        fillClass = '';
       } else if (seg.start === 0) {
         tag = 'partial';
         sub = formatMinutesLabel(segLen);
         href = `${link}&t=${Math.floor(seg.end)}s`;
-        fillPct = null; // unknown total length on client without extra data; show as partial marker
-        fillClass = '';
       } else {
         tag = 'resume';
         sub = `Resume at ${formatTimedelta(seg.start)}, watch ${formatMinutesLabel(segLen)}`;
         href = `${link}&t=${Math.floor(seg.start)}s`;
-        fillPct = null;
-        fillClass = 'resume';
       }
 
-      html += `<div class="segment">
-        <div class="segment-title">${escapeHtml(seg.title)}</div>
-        <div class="segment-tag ${tag}">${tag === 'full' ? '(full)' : `(${sub})`}</div>
-        <a href="${href}" target="_blank" rel="noopener">${href}</a>
+      html += `<div class="segment${isChecked ? ' completed' : ''}" data-segkey="${key}">
+        <input type="checkbox" class="complete-checkbox segment-checkbox" data-segkey="${key}" ${isChecked ? 'checked' : ''}>
+        <div class="segment-content">
+          <div class="segment-title">${escapeHtml(seg.title)}</div>
+          <div class="segment-tag ${tag}">${tag === 'full' ? '(full)' : `(${sub})`}</div>
+          <a href="${href}" target="_blank" rel="noopener">${href}</a>
+        </div>
       </div>`;
     });
 
@@ -600,6 +713,174 @@ function renderSplits(splits, targetSeconds, speed) {
   });
 
   return html;
+}
+
+// ---------------------------------------------------------------------
+// Checkbox interaction (event delegation, survives re-renders)
+// ---------------------------------------------------------------------
+function handleResultsChange(e) {
+  if (e.target.matches('.segment-checkbox')) {
+    const key = e.target.dataset.segkey;
+    const checked = e.target.checked;
+    currentState.progress[key] = checked;
+    saveProgress(currentState.playlistId, currentState.progress);
+    e.target.closest('.segment').classList.toggle('completed', checked);
+
+    const dayDiv = e.target.closest('.day');
+    const dayCheckbox = dayDiv.querySelector('.day-checkbox');
+    const allSegBoxes = dayDiv.querySelectorAll('.segment-checkbox');
+    dayCheckbox.checked = Array.from(allSegBoxes).every(cb => cb.checked);
+
+  } else if (e.target.matches('.day-checkbox')) {
+    const checked = e.target.checked;
+    const dayDiv = e.target.closest('.day');
+    dayDiv.querySelectorAll('.segment-checkbox').forEach(cb => {
+      cb.checked = checked;
+      currentState.progress[cb.dataset.segkey] = checked;
+      cb.closest('.segment').classList.toggle('completed', checked);
+    });
+    saveProgress(currentState.playlistId, currentState.progress);
+  }
+}
+
+function handleResultsClick(e) {
+  if (e.target.closest('#saveBtn')) {
+    saveSessionsAsHtml();
+  } else if (e.target.closest('#resetBtn')) {
+    resetProgress();
+  }
+}
+
+function resetProgress() {
+  if (!confirm('Reset all checked progress for this playlist? This can\'t be undone.')) return;
+
+  currentState.progress = {};
+  saveProgress(currentState.playlistId, {});
+
+  document.querySelectorAll('.segment-checkbox, .day-checkbox').forEach(cb => cb.checked = false);
+  document.querySelectorAll('.segment.completed').forEach(seg => seg.classList.remove('completed'));
+}
+
+// ---------------------------------------------------------------------
+// Save as standalone HTML snapshot (captures current checked state)
+// ---------------------------------------------------------------------
+function saveSessionsAsHtml() {
+  const { splits, targetSeconds, speed, progress, playlistId } = currentState;
+  const showSpeed = speed !== 1.0;
+  const baseUrl = 'https://www.youtube.com/watch?v=';
+  const pid = playlistId || 'sessions';
+
+  let body = `<h1>Playlist Plan</h1>
+    <p class="meta">${splits.length} session${splits.length !== 1 ? 's' : ''} &middot; ~${formatTimedelta(targetSeconds)} each${showSpeed ? ` @ ${speed.toFixed(2)}x` : ''}</p>`;
+
+  splits.forEach((split, dayIdx) => {
+    const dayContent = split.reduce((sum, seg) => sum + (seg.end - seg.start), 0);
+    const dayActual = showSpeed ? dayContent / speed : dayContent;
+    const dayAllChecked = split.every(seg => progress[segmentKey(seg)]);
+
+    body += `<div class="day" data-day-idx="${dayIdx}">
+      <h2>
+        <input type="checkbox" class="day-checkbox" data-day-idx="${dayIdx}" ${dayAllChecked ? 'checked' : ''}>
+        Day ${dayIdx + 1} <span class="meta">(${formatTimedelta(dayActual)}${showSpeed ? ` actual, ${formatTimedelta(dayContent)} content` : ''})</span>
+      </h2>`;
+
+    split.forEach(seg => {
+      const link = `${baseUrl}${seg.videoId}`;
+      const segLen = seg.end - seg.start;
+      const key = segmentKey(seg);
+      const isChecked = !!progress[key];
+      let sub, href;
+
+      if (seg.full) { sub = 'full'; href = link; }
+      else if (seg.start === 0) { sub = formatMinutesLabel(segLen); href = `${link}&t=${Math.floor(seg.end)}s`; }
+      else { sub = `Resume at ${formatTimedelta(seg.start)}, watch ${formatMinutesLabel(segLen)}`; href = `${link}&t=${Math.floor(seg.start)}s`; }
+
+      body += `<div class="seg${isChecked ? ' done' : ''}" data-segkey="${key}">
+        <input type="checkbox" class="segment-checkbox" data-segkey="${key}" ${isChecked ? 'checked' : ''}>
+        <div><div class="t">${escapeHtml(seg.title)}</div>
+        <div class="s">(${sub})</div>
+        <a href="${href}" target="_blank" rel="noopener">${href}</a></div>
+      </div>`;
+    });
+
+    body += `</div>`;
+  });
+
+  const doc = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Playlist Plan</title><style>
+    body{background:#12151A;color:#E7EAEE;font-family:Inter,-apple-system,sans-serif;max-width:700px;margin:0 auto;padding:40px 20px;}
+    h1{font-family:monospace;} h2{font-family:monospace;font-size:16px;margin-top:32px;display:flex;align-items:center;gap:10px;}
+    .meta{color:#8A93A3;font-size:13px;font-weight:normal;}
+    .seg{display:flex;gap:12px;background:#1B1F26;border:1px solid #2A3038;border-radius:8px;padding:14px 16px;margin-top:10px;align-items:flex-start;transition:background .15s ease,border-color .15s ease;}
+    .seg.done{border-color:#4ADE80;background:rgba(74,222,128,0.12);}
+    .seg.done .t{text-decoration:line-through;color:#8A93A3;}
+    .t{font-weight:600;margin-bottom:3px;} .s{font-family:monospace;font-size:12px;color:#F0A868;}
+    a{font-family:monospace;font-size:12.5px;color:#5EEAD4;word-break:break-all;}
+    input[type="checkbox"]{accent-color:#4ADE80;width:17px;height:17px;cursor:pointer;flex-shrink:0;margin-top:1px;}
+  </style></head><body>${body}
+  <script>
+    var PLAYLIST_ID = ${JSON.stringify(pid)};
+    var STORAGE_KEY = 'plp_snapshot_progress:' + PLAYLIST_ID;
+
+    function loadProgress() {
+      try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch (e) { return {}; }
+    }
+    function saveProgress(p) { localStorage.setItem(STORAGE_KEY, JSON.stringify(p)); }
+
+    var progress = loadProgress();
+
+    // Apply any progress saved from a previous visit to this file, on top of what was baked in at export time
+    document.querySelectorAll('.segment-checkbox').forEach(function(cb) {
+      var key = cb.dataset.segkey;
+      if (Object.prototype.hasOwnProperty.call(progress, key)) {
+        cb.checked = progress[key];
+        cb.closest('.seg').classList.toggle('done', progress[key]);
+      } else {
+        progress[key] = cb.checked;
+      }
+    });
+    document.querySelectorAll('.day').forEach(function(dayDiv) {
+      var cbs = dayDiv.querySelectorAll('.segment-checkbox');
+      var dayCb = dayDiv.querySelector('.day-checkbox');
+      dayCb.checked = Array.prototype.every.call(cbs, function(cb) { return cb.checked; });
+    });
+    saveProgress(progress);
+
+    document.addEventListener('change', function(e) {
+      if (e.target.matches('.segment-checkbox')) {
+        var key = e.target.dataset.segkey;
+        var checked = e.target.checked;
+        progress[key] = checked;
+        saveProgress(progress);
+        e.target.closest('.seg').classList.toggle('done', checked);
+
+        var dayDiv = e.target.closest('.day');
+        var dayCb = dayDiv.querySelector('.day-checkbox');
+        var allCbs = dayDiv.querySelectorAll('.segment-checkbox');
+        dayCb.checked = Array.prototype.every.call(allCbs, function(cb) { return cb.checked; });
+
+      } else if (e.target.matches('.day-checkbox')) {
+        var checked = e.target.checked;
+        var dayDiv = e.target.closest('.day');
+        dayDiv.querySelectorAll('.segment-checkbox').forEach(function(cb) {
+          cb.checked = checked;
+          progress[cb.dataset.segkey] = checked;
+          cb.closest('.seg').classList.toggle('done', checked);
+        });
+        saveProgress(progress);
+      }
+    });
+  <\/script>
+  </body></html>`;
+
+  const blob = new Blob([doc], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `playlist-plan-${pid}.html`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 function escapeHtml(str) {
@@ -632,6 +913,10 @@ $('speedInput').addEventListener('input', () => {
 });
 $('timeInput').addEventListener('input', updateCmdPreview);
 $('verboseInput').addEventListener('change', updateCmdPreview);
+
+// Delegated listeners survive results being re-rendered on each run
+$('results').addEventListener('change', handleResultsChange);
+$('results').addEventListener('click', handleResultsClick);
 
 updateCmdPreview();
 
@@ -682,7 +967,9 @@ $('runBtn').addEventListener('click', async () => {
 
     const targetContentSeconds = targetSeconds * speed;
     const splits = buildSplits(entries, targetContentSeconds);
-    html += renderSplits(splits, targetSeconds, speed);
+    const progress = loadProgress(playlistId);
+    currentState = { playlistId, splits, targetSeconds, speed, progress };
+    html += renderSplits(splits, targetSeconds, speed, progress);
 
     resultsEl.innerHTML = html;
   } catch (e) {
